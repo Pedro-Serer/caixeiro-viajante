@@ -1,73 +1,66 @@
-from itertools import permutations
+from itertools import permutations, combinations
 
-valores = {'A': 1, 'B': 2, 'E': 3, 'C': 4, 'D': 5}
-
-# Cada linha = aresta
-linhas = [
-    ['A', 'B', 6], ['A', 'E', 5], ['A', 'D', 3], ['B', 'C', 3], ['B', 'D', 4], ['B', 'E', 4],
-    ['C', 'A', 3], ['C', 'D', 5], ['C', 'E', 7], ['D', 'E', 4]
+# === Estrutura do grafo ===
+ordem = [
+    ['A', 1, {2, 3, 5}],
+    ['C', 2, {1}],
+    ['B', 3, {1, 4}],
+    ['E', 4, {3, 5}],
+    ['D', 5, {1, 4}]
 ]
 
-# Tamanho da janela
-k = 4
+# Mapas auxiliares
+index_to_label = {i: label for label, i, _ in ordem}
+label_to_index = {label: i for label, i, _ in ordem}
+adj = {i: viz for _, i, viz in ordem}
+n = len(ordem)
 
-def vizinhos_diff1(u, v):
-    return abs(valores[u] - valores[v]) == 1
+# --- Função: verifica se uma permutação forma um caminho válido ---
+def caminho_valido(perm):
+    """Retorna True se todos os vértices consecutivos em perm são adjacentes."""
+    for a, b in zip(perm, perm[1:]):
+        if b not in adj[a]:
+            return False
+    return True
 
-distancias = {}
-for u, v, d in linhas:
-    distancias[(u, v)] = d
-    distancias[(v, u)] = d  # bidirecional
+# --- Gera todas as janelas (combinações de 3 vértices) ---
+k = 3
+validas = []
 
-janelas = []
-for i in range(len(linhas) - k + 1):
-    janela = linhas[i:i+k]
-    vertices = [v for aresta in janela for v in aresta[:2]]
-    vertices = list(dict.fromkeys(vertices))
-    perms = list(permutations(vertices))
-    janelas.append(perms)
+for comb in combinations(range(1, n+1), k):
+    for perm in permutations(comb):
+        if caminho_valido(perm):
+            validas.append(perm)
 
-caminhos = []
+print("=== Permutações válidas ===")
+for v in validas:
+    print([index_to_label[i] for i in v])
 
-for i in range(len(janelas) - 1):
-    X = janelas[i]
-    Y = janelas[i+1]
-    
-    for linha_X in X:
-        ultimo_X = linha_X[-1]
-        for linha_Y in Y:
-            primeiro_Y = linha_Y[0]
-            if vizinhos_diff1(ultimo_X, primeiro_Y):
-                caminho = list(linha_X)
-                for v in linha_Y:
-                    if v not in caminho:
-                        caminho.append(v)
-                caminhos.append(caminho)
+# --- Cria transições entre janelas ---
+transicoes = {}
+for u in validas:
+    transicoes[u] = []
+    for v in validas:
+        # se o final de u conecta ao início de v
+        if u[-1] in adj[v[0]]:
+            transicoes[u].append(v)
 
-caminhos_unicos = []
-for c in caminhos:
-    if c not in caminhos_unicos:
-        caminhos_unicos.append(c)
+# --- Busca caminhos completos via DFS ---
+resultados = []
 
-# Guardar caminhos com detalhes das arestas e soma
-caminhos_detalhados = []
-for cam in caminhos_unicos:
-    detalhe = []
-    soma = 0
-    for j in range(len(cam) - 1):
-        u, v = cam[j], cam[j+1]
-        d = distancias.get((u, v), 0)
-        detalhe.append(f"{u}-{v}={d}")
-        soma += d
-    caminhos_detalhados.append((cam, detalhe, soma))
+def dfs(caminho, visitados):
+    ultimo = caminho[-1]
+    if len(visitados) == n:
+        resultados.append([index_to_label[i] for i in caminho])
+        return
+    for prox in range(1, n+1):
+        if prox not in visitados and prox in adj[ultimo]:
+            dfs(caminho + [prox], visitados | {prox})
 
-# Encontrar menor soma
-menor_caminho = min(caminhos_detalhados, key=lambda x: x[2])
+# Inicia a busca a partir de cada vértice
+for v in range(1, n+1):
+    dfs([v], {v})
 
-print(f"Total de caminhos Hamiltonianos encontrados: {len(caminhos_unicos)}\n")
-for i, (cam, detalhe, soma) in enumerate(caminhos_detalhados, 1):
-    print(f"Caminho {i}: {cam} | {' , '.join(detalhe)} | Total: {soma}")
-
-print("\nCaminho de menor soma:")
-cam, detalhe, soma = menor_caminho
-print(f"{cam} | {' , '.join(detalhe)} | Total: {soma}")
+print("\n=== Candidatos finais (Hamiltonianos) ===")
+for r in resultados:
+    print(r)
