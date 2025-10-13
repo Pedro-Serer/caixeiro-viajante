@@ -12,122 +12,94 @@ A ideia central é:
 
 from itertools import permutations, combinations
 
-# === 1. Matriz 'ordem' do grafo 
+# === 1. Matriz 'ordem' ===
 ordem = [
-    ['A', 0, [2, 3]],   # A(0) conectado a B e C
-    ['D', 1, [2, 3]],   # D(1) conectado a B e C
-    ['B', 2, [0, 1, 5]],# B(2) conectado a A, D e E
-    ['C', 3, [0, 1]],   # C(3) conectado a A e D
-    ['F', 4, [5, 6]],   # F(4) conectado a E e G
-    ['E', 5, [2, 4, 6]],# E(5) conectado a B, F e G
-    ['G', 6, [4, 5]]    # G(6) conectado a F e E
+    ['A', 1, {2, 3, 4, 8}],
+    ['B', 2, {1, 5, 6}],
+    ['C', 3, {1, 6, 7}],
+    ['D', 4, {1, 5, 11}],
+    ['E', 5, {2, 4, 9}],
+    ['F', 6, {2, 3, 9, 10}],
+    ['G', 7, {3, 8, 10}],
+    ['H', 8, {1, 11}],
+    ['I', 9, {5, 6, 11}],
+    ['J', 10, {6, 7, 11}],
+    ['K', 11, {4, 9, 10, 8}]
 ]
 
-# --- Mapas auxiliares para conversão e vizinhança ---
+n = len(ordem)
+
+# --- Mapas auxiliares ---
 index_to_label = {i: label for label, i, _ in ordem}  # índice → letra
 label_to_index = {label: i for label, i, _ in ordem}  # letra → índice
-adj = {i: viz for _, i, viz in ordem}                 # vizinhos de cada vértice
-n = len(ordem)                                        # número de vértices
+adj = {i: viz for _, i, viz in ordem}  # adjacência
+neighbors = adj  # apenas para compatibilidade com o resto do código
 
-# --- Função de verificação de caminho ---
+# --- Função: verifica se uma permutação forma caminho válido ---
 def caminho_valido(perm):
-    """
-    Retorna True se todos os vértices consecutivos em perm estão conectados no grafo.
-    Cada permutação é um possível subcaminho (trinca) do grafo.
-    """
+    """Retorna True se todos os vértices consecutivos em perm são adjacentes."""
     for a, b in zip(perm, perm[1:]):
         if b not in adj[a]:
             return False
     return True
 
-# --- 2. Geração de todas as trincas válidas ---
+# --- 2. Gera todas as janelas (trincas válidas) usando índices ---
 k = 3
 validas = []
 
-for comb in combinations(range(n), k):      # todas as combinações de 3 vértices
-    for perm in permutations(comb):         # todas as permutações de cada combinação
-        if caminho_valido(perm):           # mantém apenas as trincas válidas
-            validas.append(list(perm))
+for comb in combinations(range(1, n + 1), k):
+    for perm in permutations(comb):
+        if caminho_valido(perm):
+            validas.append(list(perm))  # já como índices
 
-# === 3. Função filtra_saida_v5 ===
-def filtra_saida_v5(matriz):
-    """
-    Reconstrói caminhos completos a partir das trincas válidas.
-    Baseado na ideia do Teorema das Trincas de Serer:
-    - Cada trinca é uma janela de 3 vértices conectados.
-    - Trincas adjacentes compartilham exatamente um vértice extremo.
-    - Evita sobreposição de múltiplos vértices para impedir caminhos inválidos.
-    """
-    caminhos = set()
-    tam = len(matriz)
+# --- Construir ADJ entre trincas fornecidas ---
+def build_adj(triples):
+    adj_triples = {i: [] for i in range(len(triples))}
+    for i, t1 in enumerate(triples):
+        for j, t2 in enumerate(triples):
+            if i == j:
+                continue
+            # Condição de adjacência: últimos dois de t1 == primeiros dois de t2
+            # e último vértice de t2 é vizinho do último de t1
+            if t1[1] == t2[0] and t1[2] == t2[1] and t2[2] not in t1:
+                if t2[2] in neighbors[t1[2]]:
+                    adj_triples[i].append(j)
+    return adj_triples
 
-    for i in range(tam):
-        base = matriz[i]
-        caminho = base.copy()
-        usados = {tuple(base)}
-        mudou = True
+# --- Construir caminhos usando apenas trincas fornecidas ---
+def build_paths(triples):
+    adj_triples = build_adj(triples)
+    paths = []
+    seen_paths = set()  # para evitar duplicatas
 
-        inicio, fim = caminho[0], caminho[-1]
+    for start_idx in range(len(triples)):
+        path = triples[start_idx].copy()
+        current_idx = start_idx
 
-        while mudou:
-            mudou = False
-            ultima_trinca = caminho[-3:] if len(caminho) >= 3 else caminho
-
-            for j in range(tam):
-                trinca = matriz[j]
-                if tuple(trinca) in usados:
-                    continue
-
-                # --- Verifica interseção com a última trinca ---
-                comuns = set(ultima_trinca) & set(trinca)
-                if len(comuns) != 1:  # apenas um vértice em comum permitido
-                    continue
-
-                comum = list(comuns)[0]
-
-                # vértice comum deve estar nas extremidades de ambas as trincas
-                if not (comum in (ultima_trinca[0], ultima_trinca[-1]) and
-                        comum in (trinca[0], trinca[-1])):
-                    continue
-
-                # ignora se houver mais de um elemento em comum
-                if len(set(ultima_trinca) & set(trinca)) > 1:
-                    continue
-
-                # adiciona apenas novos vértices
-                novos = [v for v in trinca if v not in caminho]
-                if not novos:
-                    continue
-
-                # --- Concatena trinca no início ou fim do caminho ---
-                if trinca[0] == fim or trinca[-1] == fim:
-                    caminho.extend(novos)
-                    fim = caminho[-1]
-                elif trinca[0] == inicio or trinca[-1] == inicio:
-                    caminho = novos + caminho
-                    inicio = caminho[0]
-                else:
-                    continue
-
-                usados.add(tuple(trinca))
-                mudou = True
+        while True:
+            extended = False
+            for next_idx in adj_triples[current_idx]:
+                next_triple = triples[next_idx]
+                next_vertex = next_triple[2]
+                if next_vertex not in path:  # não repetir vértices
+                    path.append(next_vertex)
+                    current_idx = next_idx
+                    extended = True
+                    break
+            if not extended:
                 break
 
-        if len(caminho) > 3:
-            caminhos.add(tuple(caminho))
+        # Converter para tupla para usar em set e evitar duplicatas
+        path_tuple = tuple(path)
+        if path_tuple not in seen_paths:
+            seen_paths.add(path_tuple)
+            paths.append(path)
 
-    return caminhos
+    return paths
 
-# --- 4. Executa v5 com as trincas válidas ---
-caminhos_indices = filtra_saida_v5(validas)
+# --- Executar ---
+paths = build_paths(validas)
 
-# --- 5. Converte índices para letras ---
-caminhos_letras = []
-for caminho in caminhos_indices:
-    letras = [index_to_label[i] for i in caminho]
-    caminhos_letras.append(letras)
-
-# --- 6. Exibe os caminhos reconstruídos ---
-print("=== Caminhos reconstruídos ===")
-for c in sorted(caminhos_letras):
-    print(c)
+# Exibir caminhos com nomes dos vértices
+for p in paths:
+    print([index_to_label[i] for i in p])
