@@ -58,3 +58,40 @@ for i, cam in enumerate(caminhos_unicos, 1):
 
 if not caminhos_unicos:
     print("Nenhum caminho Hamiltoniano encontrado com os valores atuais.")
+
+
+
+
+
+# def dfs_serer(node, caminho, paths):
+#     caminho.append(node)
+
+#     # Termina se não há filhos ou todos já estão no caminho
+#     if node not in graph or all(child in caminho for child in graph[node]):
+#         paths.append(caminho.copy())
+#     else:
+#         for child in graph[node]:
+#             if child not in caminho:
+#                 dfs_serer(child, caminho, paths)
+
+#     caminho.pop()
+
+
+# def gerar_todas_arvores_serer(graph):
+#     arvores = {}
+#     for raiz in graph:
+#         paths = []
+#         dfs_serer(raiz, [], paths)
+#         arvores[raiz] = paths
+#     return arvores
+
+
+# # Executa
+# todas_arvores = gerar_todas_arvores_serer(graph)
+
+# # Exibe resultados
+# for raiz, paths in todas_arvores.items():
+#     print(f"Árvore de Serer enraizada em {raiz}:")
+#     for p in paths:
+#         print("  ", p)
+#     print()
